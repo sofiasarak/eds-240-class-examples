@@ -5,3 +5,64 @@ format: html
 editor: visual
 ---
 
+## Set Up
+
+```{r}
+# Load necessary libraries
+library(tidyverse)
+library(janitor)
+library(here)
+library(stringr)
+```
+
+```{r}
+# Read in data
+stressor_raw <- read_csv(here("week1/data/stressor.csv"))
+```
+## What needs tidying?
+
+There are random characters within the observations of the `state` and `stressor`, and the data needs pivoting to longer format.
+
+## The tidying
+
+```{r}
+# stressor_raw$stressor <- str_remove_all(stressor_raw$stressor, "[!@#$%^&*()+-.]")
+
+clean_stressor <- stressor_raw %>% 
+  mutate(state = str_replace_all(state, "[^A-Za-z]", ""), # ^ represents "not"
+         stressor = str_replace_all(stressor, "[^A-Za-z]", ""),
+         stressor = str_replace(stressor, "Disesases", "Diseases"),
+         stressor = str_replace(stressor, "Otherpestsparasites", "Other pests and parasites"),
+         stressor = str_replace(stressor, "Varroamites", "Varroa mites")) %>% 
+  clean_names() %>% 
+  pivot_longer(cols = "january_march":"october_december",
+               names_to = "months",
+               values_to = "stressor_pct") %>% 
+  mutate(quarter = case_when(
+    months == "january_march" ~ 1,
+    months == "april_june" ~ 2,
+    months == "july_september" ~ 3,
+    months == "october_december" ~ 4
+  )) %>% 
+  filter(state != "OtherStates", state != "UnitedStates")
+```
+
+## Data Exploration: Varroa Mites in New Mexico
+
+```{r}
+explore_stressor <- clean_stressor %>% 
+  filter(state == "NewMexico", stressor == "Varroa mites") %>% 
+  group_by(year, quarter) %>% 
+  summarize(average = mean(stressor_pct)) %>% 
+  drop_na()
+```
+
+## THE DATA VIZ
+
+```{r}
+library(ggplot2)
+
+ggplot(explore_stressor, aes(x = year, y = average, fill = quarter)) +
+  geom_col(position = position_dodge2(preserve = "single")) 
+```
+
