@@ -1,5 +1,5 @@
 .DS_Store
-/week*/ .DS_Store
+/week*/.DS_Store
 
 # ignore any folder named `data/` within folders named `week*` (* acts as a wildcard)
 /week*/data/
