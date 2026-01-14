@@ -19,6 +19,7 @@ library(stringr)
 # Read in data
 stressor_raw <- read_csv(here("week1/data/stressor.csv"))
 ```
+
 ## What needs tidying?
 
 There are random characters within the observations of the `state` and `stressor`, and the data needs pivoting to longer format.
@@ -65,4 +66,3 @@ library(ggplot2)
 ggplot(explore_stressor, aes(x = year, y = average, fill = quarter)) +
   geom_col(position = position_dodge2(preserve = "single")) 
 ```
-
