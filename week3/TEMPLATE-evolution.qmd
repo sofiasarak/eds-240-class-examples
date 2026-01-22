@@ -73,7 +73,7 @@ us_state_pop <- get_estimates(geography = "state",
 
 #........................write data to csv.......................
 # OPTIONAL, but recommended in case you want to work offline, the API is down, etc. (you can then read in your saved data file rather than run the above code)
-# write_csv(us_state_pop, file = here::here("week3", "data", "us_state_pop.csv"))  
+write_csv(us_state_pop, file = here::here("week3", "data", "us_state_pop.csv"))  
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##                            join lyme & pop dfs                           ----
@@ -96,6 +96,8 @@ lyme_pop <- left_join(lyme_clean, us_state_pop) |>
 #| eval: true
 #| echo: true
  #...........................line chart...........................
+ggplot(lyme_pop, aes(x = year, y = cases_per100k, group = state)) +
+  geom_line() 
 ```
 
 ### Avoid spaghetti plots 
@@ -110,11 +112,13 @@ lyme_pop <- left_join(lyme_clean, us_state_pop) |>
 
 #.......................highlight on group.......................
 ggplot(lyme_pop, aes(x = year, y = cases_per100k, group = state)) +
-  geom_line() 
+  geom_line() +
+  gghighlight(state == "Connecticut")
 
 #..................highlight based on criteria...................
-ggplot(lyme_pop, aes(x = year, y = cases_per100k, group = state)) +
-  geom_line() 
+ggplot(lyme_pop, aes(x = year, y = cases_per100k, group = state, color = state)) +
+  geom_line() + 
+  gghighlight(max(cases_per100k > 100)) # only highlight states where there are more than 100 cases per 100k people
 ```
 
 ### Note 1: ggplot cuts the y-axis if 0 isn’t relevant
@@ -144,6 +148,9 @@ lyme_pop |>
 
 ### Note 2: Consider aspect ratio (height:width ratio)
 
+Lecture notes:
+- slopes of lines look different depending on aspect ratio that is used
+
 ::: {.callout-tip}
 Temporarily adding tick marks (breaks) can help to visualize changes to your plot's aspect ratio. Always remove breaks when finalizing your plot. 
 :::
@@ -155,7 +162,9 @@ Temporarily adding tick marks (breaks) can help to visualize changes to your plo
 lyme_pop |> 
   filter(state == "Vermont") |> 
   ggplot(aes(x = year, y = cases_per100k, group = state)) +
-  geom_line() 
+  geom_line() +
+  #scale_y_continuous(breaks = seq(0, 190, by = 1)) +
+  coord_fixed(ratio = 1/50) # changing aspect ratio ("1 change in x is equal to 50 changes in y")
 ```
 
 ## Area charts
@@ -167,7 +176,13 @@ lyme_pop |>
 #| echo: true
 #...........area chart of lyme disease incidence in NJ...........
 lyme_pop |> 
-  filter(state == "New Jersey") 
+  filter(state == "New Jersey") %>% 
+  ggplot(aes(x = year, y = cases_per100k, group = state)) +
+  geom_area() +
+  
+  # remove blank space that ggplot automatically includes
+  scale_x_discrete(expand = c(0, NA)) + # let ggplot decide what topmost value is
+  scale_y_discrete(expand = c(0, NA))
 ```
 
 ### Alternative: stacked area charts 
@@ -179,12 +194,18 @@ lyme_pop |>
 #| echo: true
 #.......................stacked area chart.......................
 lyme_pop |> 
-  filter(state %in% c("Maine", "Rhode Island", "New Hampshire", "Vermont")) 
+  filter(state %in% c("Maine", "Rhode Island", "New Hampshire", "Vermont")) %>% 
+  ggplot(aes(x = year, y = cases_per100k, group = state, fill = state)) +
+  geom_area()
+
+# top line: all of our groups collectively; areas are relative to other groups
+# not good for showing values for each group
 ```
 
 ### Alternative: proportional stacked area chart
 
 - plot percentage contributions rather than absolute numbers on y-axis
+- makes it easier to interepret!
 
 ```{r}
 #| eval: true
@@ -193,7 +214,8 @@ lyme_pop |>
 lyme_pop |> 
   filter(state %in% c("Maine", "Rhode Island", "New Hampshire", "Vermont")) |> 
   ggplot(aes(x = year, y = cases_per100k, group = state, fill = state)) +
-  geom_area() 
+  geom_area(position = "fill") + 
+  scale_y_continuous(labels = label_percent())
 ```
 
 ### Note 1: stacked area charts aren't great for looking at evolution of individual groups
