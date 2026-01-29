@@ -1,0 +1,358 @@
+---
+title: "TEMPLATE - visualizing numerical relationships"
+author: "Your Name"
+date: 2026-01-28
+toc: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+::: {.callout-note}
+This template follows [relationships slides](https://eds-240-data-viz.github.io/course-materials/lecture-slides/SLIDES-relationships.html#/title-slide){target="_blank"}. Please be sure to cross-reference the slides, which contain important information and additional context!
+:::
+
+## Setup
+
+Data are downloaded from [DataOne](https://search.dataone.org/view/https%3A%2F%2Fpasta.lternet.edu%2Fpackage%2Fmetadata%2Feml%2Fknb-lter-hbr%2F208%2F14){target="_blank} (find instructions for getting the download link on the [`{metajam}` package README](https://github.com/NCEAS/metajam?tab=readme-ov-file#how-to-get-the-url-to-your-dataset-of-interest-){target="_blank}).
+
+```{r}
+#| eval: false
+#| echo: true
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                    setup                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#..........................load packages.........................
+library(metajam) 
+library(tidyverse)
+library(ggExtra)
+library(ggdensity)
+
+#...................download data from DataOne...................
+# you only need to do this once (then I recommend commenting it out)!
+# metajam::download_d1_data("https://cn.dataone.org/cn/v2/resolve/https%3A%2F%2Fpasta.lternet.edu%2Fpackage%2Fdata%2Feml%2Fknb-lter-hbr%2F208%2F14%2F024b6acc5cb2e03a14fff5558bbffc0c",
+                 path = here::here("week4")) 
+
+#  ~ NOTE: You should rename the downloaded folder to 'data/' so that it's automatically ignored by your repo's .gitignore! ~
+
+#....................read in downloaded files....................
+stream_chem_all <- metajam::read_d1_files(here::here("week4", "data")) # creates list of pathnames for the data files in the folder  
+
+#........................get the data file.......................
+stream_chem_data <- stream_chem_all$`HubbardBrook_weekly_stream_chemistry_1963-2025.csv`
+```
+
+## Scatter plots
+
+### Basic scatter plot
+
+```{r}
+#| eval: true
+#| echo: true
+#| warning: false
+#.......................basic scatter plot.......................
+p1 <- stream_chem_data %>% 
+  filter(waterYr == 2024) %>% 
+  ggplot(aes(x = DOC, y = pH)) +
+  geom_point(alpha = 0.5)
+
+p1
+```
+
+### Alt 1: add a rug plot
+
+```{r}
+#| eval: true
+#| echo: true
+#| warning: false
+#.......................scatter + rug plot.......................
+p1 +
+  geom_rug() # adds distribution of variables along plot axes
+```
+
+### Alt 2: marginal plot alternatives using `{ggExtra}`
+
+```{r}
+#| eval: true
+#| echo: true
+#| warning: false
+#................add marginal plots with {ggExtra}...............
+# ggExtra requires that your plots are pre-saved as objects
+# also try "density", "boxplot"
+
+ggMarginal(p1, type = "histogram") # adds histograms to the edges of your plots 
+ggMarginal(p1, type = "boxplot") # adds boxplot; density also an option
+```
+
+### Alt 3: scatter + marginal plot with 2+ groups
+
+```{r}
+#| eval: true
+#| echo: true
+#| warning: false
+#............scatter plot with points colored by site............
+p2 <- stream_chem_data |> 
+  filter(waterYr == 2024) |> 
+  ggplot(aes(x = DOC, y = pH, color = site)) + 
+  geom_point(alpha = 0.5) +
+  theme(legend.position = "bottom") # move legend to stop it's conflict with the density plots
+
+p2
+
+#..................with marginal density plot....................
+ggMarginal(p2, type = "density", groupFill = TRUE, groupColour = TRUE)
+```
+
+## Trend lines
+
+### Default (<1000 data points): LOESS method
+
+```{r}
+#| eval: true
+#| echo: true
+#......................add a smoothed line.......................
+stream_chem_data %>% 
+  filter(waterYr %in% c(2014:2024)) %>% 
+  filter(site == "W5") %>% 
+  ggplot(aes(x = DOC, y = pH)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth() # loess method will "fit a curve to anything", even if there's no relationship
+```
+
+### Line of best fit
+
+```{r}
+#| eval: true
+#| echo: true
+#........................add a trend line........................
+stream_chem_data |> 
+  filter(waterYr %in% c(2014:2024)) |>  
+  filter(site == "W5") |> 
+  ggplot(aes(x = DOC, y = pH)) + 
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) # line of best fit is created without checking for assumptions; 
+                                         # CI ribbons suggest a correct fit, which we have not ensured
+```
+
+## Visualizing a third numeric variable
+
+### Bubble charts
+
+- be mindful: it's challenging to interpret 3 numeric variables
+    
+```{r}
+#| eval: true
+#| echo: true
+#| warning: false
+#..........................bubble chart..........................
+stream_chem_data |> 
+  filter(waterYr == 2024) |> 
+  ggplot(aes(x = DOC, y = pH, size = Al_ICP, color = site)) + 
+  geom_point(alpha = 0.5) +
+  labs(x = "DOC (mg/L)", size = "Al (mg/L)", color = "Site")
+
+# this is becoming a lot! x- and y- relationships will be noticed first; 
+# differences in size is really hard for us to understand!
+# size as a third variable is better when there are substantial differences between values
+```
+
+- adjust size range of bubbles
+- IMPORTANT: don't scale size by radius (can be deceptive)
+
+```{r}
+#| eval: true
+#| echo: true
+#| warning: false
+#| layout-ncol: 2
+#.......................scale size by area.......................
+stream_chem_data |> 
+  filter(waterYr == 2024) |> 
+  ggplot(aes(x = DOC, y = pH, color = site, size = Al_ICP)) + 
+  geom_point(alpha = 0.5) +
+  scale_size(range = c(1, 10)) + # 10x difference between the smallest and largest bubbles in data
+  labs(x = "DOC (mg/L)", size = "Al (mg/L)", color = "Site")
+
+#...................DON'T scale size by radius...................
+stream_chem_data |> 
+  filter(waterYr == 2024) |> 
+  ggplot(aes(x = DOC, y = pH, color = site, size = Al_ICP)) + 
+  geom_point(alpha = 0.5) +
+  scale_radius(range = c(1, 10)) + # exaggerates differences in values 
+  labs(x = "DOC (mg/L)", size = "Al (mg/L)", color = "Site")
+```
+
+### Use color for third numeric variable
+
+```{r}
+#| eval: true
+#| echo: true
+#| warning: false
+#...................color for a third variable...................
+stream_chem_data |> 
+  filter(waterYr == 2024) |> 
+  ggplot(aes(x = DOC, y = pH, color = Al_ICP)) + 
+  geom_point(alpha = 0.5, size = 2) +
+  scale_color_viridis_c() +
+  labs(x = "DOC (mg/L)")
+```
+
+### But oftentimes best to just create two different plots
+
+```{r}
+#| eval: true
+#| echo: true
+#| warning: false
+#| layout-ncol: 2
+#......................effect of DOC on pH.......................
+stream_chem_data |> 
+  filter(waterYr == 2024) |> 
+  ggplot(aes(x = DOC, y = pH, color = site)) + 
+  geom_point(alpha = 0.5)
+
+#....................effect of DOC on Al_ICP.....................
+stream_chem_data |> 
+  filter(waterYr == 2024) |> 
+  ggplot(aes(x = Al_ICP, y = pH, color = site)) + 
+  geom_point(alpha = 0.5)
+```
+
+## Overplotting
+
+- if you have too many points, scatter plots can be ineffective
+
+```{r}
+#| eval: true
+#| echo: false
+#| warning: false
+#.....................wayyyy too many points.....................
+ggplot(stream_chem_data, aes(x = SO4, y = pH)) + 
+  geom_point()
+
+# this is overplotting!
+```
+
+### Initial strategies
+
+```{r}
+#| eval: true
+#| echo: false
+#| warning: false
+#| layout-ncol: 3
+#................smaller, more transparent points................
+ggplot(stream_chem_data, aes(x = SO4, y = pH)) + 
+  geom_point(size = 0.5, alpha = 0.5) 
+
+#..........................add rug plot..........................
+ggplot(stream_chem_data, aes(x = SO4, y = pH)) + 
+  geom_point(size = 0.5, alpha = 0.3) +
+  geom_rug()
+
+#.........................color by group.........................
+ggplot(stream_chem_data, aes(x = SO4, y = pH, color = site)) + 
+  geom_point(size = 0.5, alpha = 0.3) 
+```
+
+### Alt 1: 2d heatmaps
+
+- e.g. like you're looking down on a histogram
+
+```{r}
+#| eval: true
+#| echo: false
+#| warning: false
+#| layout-ncol: 2
+#....................heatmap of 2d bin counts....................
+ggplot(stream_chem_data, aes(x = SO4, y = pH)) +
+  geom_bin2d() + # like looking down on a histogram
+  scale_fill_viridis_c() # fill instead of color because filling in little blocks
+
+#..................heatmap with hexagonal bins...................
+ggplot(stream_chem_data, aes(x = SO4, y = pH)) +
+  geom_hex() +
+  scale_fill_viridis_c() +
+  guides(fill = guide_colorbar(title = "Count",
+                               barwidth = 1, barheight = 15)) # changes height of colorbar to better see transition in colors
+```
+
+### Alt 2: 2d density / contour plots
+
+- e.g. like you're looking down on a density plot
+- legend provides an estimate of the proportion of data points fall within a colored region (density of distribution of points sums to 1)
+    - interpreting legend: 0-2% of of points fall within a 1x1 square in the darkest blue region, while 24-26% fall within a 1x1 square in the brightest yellow region
+
+```{r}
+#| eval: true
+#| echo: false
+#| warning: false
+#..........................contour plot..........................
+ggplot(stream_chem_data, aes(x = SO4, y = pH)) +
+  geom_density2d_filled() # like looking down on top of a density plot
+
+# how to interpret legend: (0,0.2] says that 2% of data is in that color
+```
+
+### Alt 3: 2d density plots using `{ggdensity}`
+
+- can be easier to interpret
+- compute and plot the resulting highest density regions (HDRs)
+- HDRs are computed to be the smallest such regions that bound that level of probability
+
+```{r}
+#| eval: true
+#| echo: false
+#| warning: false
+#................2d density plot with {ggdensity}................n. (easier to interpret option)
+ggplot(stream_chem_data, aes(x = SO4, y = pH)) +
+  geom_hdr() # comes from ggdensity package; plots highest density regions (HDRs)
+```
+## Lecture Notes
+
+Making a Good Data Viz, General Rules
+
+Consider:
+- data-ink ratio (less is more, within reason)
+- how to reduce eye-movement and improve readability/interpretability (adjust legend positions, annotations)
+- putting things in context
+- draw the main attention to the most imporant info 
+- consistent use of colors, spacing, typefaces, weights
+- typeface/font choices
+- visual hierarchy
+- color choices 
+- how to tell an interesting story
+- how to center the people and communities represented in your data 
+- accessibility through colorblind-friendly palettes and alt text
+
+everything that is not actually representing our data should be removed wherever possible 
+data-ink ratio = data-ink/ total ink used to print the graphic
+- to a certain extent, sometimes eliminating a lot of non-data ink may render visualizations difficult to read 
+
+
+- axis unecessary, can just add number into the actual bar plot 
+- rotated text, can exclude title of axis (title makes it obvious that penguin species are obvious)
+
+- different needs for audience (research publication or general audience)
+
+- can move legends so they are closer to the data, using `legend.position = c(x = , y = )`
+
+- include trends and descriptions embedded within plot
+
+### provide context for data you're presenting:
+- add past data in background in gray
+- remove gridlines?
+- add 1:1 line
+- geom_mark_ellipse can circle your group of interest
+- dual y-axes can deliberately mislead readers 
+
+- think about rearanging variables in plot space --> years as points? with values as axes?
+
+- pi charts might be ok if wedge size is really obvious;
+- aggregating if there are lots of tiny slices 
+- pi chart alternatives:
+tree maps and waffle charts  --> show parts to whole relationships 
+
+objects one in front of the other, we start assuming distance
+perceptive distortion (even if it's small on paper we know it's large irl)
+- avoid 3d position scales --> plot things twice, or use size for other vars
+
+
+

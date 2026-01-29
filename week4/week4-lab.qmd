@@ -1,0 +1,68 @@
+---
+title: "week4-lab"
+format: html
+---
+
+## Global Waste!
+
+Load in packages and data
+
+```{r}
+#| message: false
+library(tidyverse)
+```
+
+```{r}
+#| message: false
+url <- "https://github.com/EDS-240-Data-Viz/fundamental-charts-lab-data/raw/refs/heads/main/global_waste/country_level_data.csv"
+waste <- read_csv(url)
+```
+
+Data wrangling
+
+```{r}
+waste %>% 
+  mutate(total_waste = rowSums(c(special_waste_agricultural_waste_tons_year:total_msw_total_msw_generated_tons_year), na.rm = TRUE))
+```
+
+
+Preliminary exploration
+
+```{r}
+ggplot(data = waste) +
+  geom_point(aes(x = gdp, y = composition_food_organic_waste_percent), color = "red") +
+  geom_point(aes(x = gdp, y = composition_glass_percent), color = "blue")
+```
+
+```{r}
+waste_long <- waste %>% 
+  pivot_longer(cols = c(composition_food_organic_waste_percent:composition_yard_garden_green_waste_percent),
+               names_to = "waste_type",
+               values_to = "percent_waste")
+```
+
+
+```{r}
+my_labeller <- as_labeller(c(composition_food_organic_waste_percent = "Organic Food", composition_glass_percent = "Glass", composition_metal_percent = "Metal",
+                             composition_other_percent = "Other", composition_paper_cardboard_percent = "Cardboard", composition_plastic_percent = "Plastic", 
+                             composition_rubber_leather_percent = "Rubber Leather", composition_wood_percent = "Wood", composition_yard_garden_green_waste_percent = "Yard and Garden"))
+
+ggplot(data = waste_long, aes(x = gdp, y = percent_waste)) +
+  geom_point(alpha = 0.5, color = "cornflowerblue") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(size = 7)) +
+  facet_wrap(~waste_type,
+             labeller = my_labeller) + 
+  labs(title = "Comparing Country GDP to Percent Waste Type",
+       y = " ",
+       x = "Country GDP") +
+  scale_y_continuous(labels = scales::label_percent(scale = 1))
+```
+
+- theme
+- facet labels
+- add labels 
+- color by waste type
+- axis titles?
+- alpha points

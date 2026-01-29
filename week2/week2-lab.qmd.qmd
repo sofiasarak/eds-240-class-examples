@@ -1,0 +1,26 @@
+---
+title: "Week 2 Lab: Alt Text"
+author: "Sofia Sarak"
+format: html
+editor: visual
+---
+
+```{r}
+#install.packages("lterdatasampler")
+library(lterdatasampler)
+library(tidyr)
+library(ggplot2)
+
+pie_crab %>%
+
+  ggplot(aes(y=latitude, x = size, group = latitude)) +
+
+  geom_boxplot() +
+
+  scale_x_continuous(breaks = seq(from = 7, to = 23, by = 2), limits = c(6.5,24))+
+
+  scale_y_continuous(breaks = seq(from = 29, to = 43, by = 2), limits = c(29, 43.5)) +
+
+  labs(title = "Crab carapace size (mm) by latitude")
+```
+
